@@ -34,7 +34,8 @@ pc = 0x201
 
 # functions
 
-function load(x::UIn8, y::UInt8)
+function load(x::UInt8, y::UInt8)
+    global pc
     opcode = (x << 8) | y
     pc += 2
     decode(opcode)
@@ -53,7 +54,7 @@ function decode(opcode::UInt16)
 
     elseif nib1 == 0x1
         NNN = UInt16(opcode & 0x0FFF)
-        jump(NNN)
+        pc_jmp(NNN)
     elseif nib1 == 0x2
 
     elseif nib1 == 0x3
@@ -80,7 +81,10 @@ function decode(opcode::UInt16)
     elseif nib1 == 0xC
 
     elseif nib1 == 0xD
-
+        X = UInt8(opcode >> 8 & 0xF)
+        Y = UInt8(opcode >> 4 & 0xF)
+        N = UInt8(opcode & 0xF)
+        draw_screen(X,Y,N)
     elseif nib1 == 0xE
 
     elseif nib1 == 0xF
@@ -88,35 +92,43 @@ function decode(opcode::UInt16)
     end
 end
 
-function
-
-function jump(NNN::UInt16) # 1NNN
+# 1NNN
+function pc_jmp(NNN::UInt16)
+    global pc
     pc = NNN
-    return
 end
 
-function set_register(XNN::UInt16) # 6XNN
+# 6XNN
+function set_register(XNN::UInt16)
     X = UInt8(XNN >> 8) & 0xF
     NN = UInt8(XNN & 0xFF)
-    v[X + 1] = NN
-    return
+    v[X + 1] = NN     #
 end    
 
-function add_register(XNN::UInt16) # 7XNN
+# 7XNN
+function add_register(XNN::UInt16)
     X = UInt8(XNN >> 8) & 0xF
     NN = UInt8(XNN & 0xFF)
-    v[X + 1] += NN
-    return
+    v[X + 1] += NN    
 end    
 
-function set_I(NNN::UInt16) # ANNN
+# ANNN
+function set_I(NNN::UInt16)
+    global I
     I = NNN
 end    
 
-function clear_screen() # 00E0
+# 00E0
+function clear_screen()
+    global screen
     screen = falses(32, 64)
-    return
 end    
+
+
+function draw_screen(X::UInt8, Y::UInt8, N::UInt8)
+    x_coord = v[X+1]
+    y_coord = v[Y+1]
+end
 
 
 # main F/D/E Loop
