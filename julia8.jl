@@ -30,18 +30,9 @@ for i in eachindex(font)
     mem[0x50 + i] = font[i]
 end    
 
-pc = 0x201
-
 # functions
 
-function load(x::UInt8, y::UInt8)
-    global pc
-    opcode = (x << 8) | y
-    pc += 2
-    decode(opcode)
-end
-
-function decode(opcode::UInt16)
+function evaluate(opcode::UInt16)
     nib1 = UInt8((opcode >> 12) & 0xF)
     if nib1 == 0x0
         if opcode == 0x00E0
@@ -88,14 +79,12 @@ function decode(opcode::UInt16)
     elseif nib1 == 0xE
 
     elseif nib1 == 0xF
-
     end
 end
 
 # 1NNN
 function pc_jmp(NNN::UInt16)
-    global pc
-    pc = NNN
+    global pc = NNN
 end
 
 # 6XNN
@@ -114,24 +103,76 @@ end
 
 # ANNN
 function set_I(NNN::UInt16)
-    global I
-    I = NNN
+    global I = NNN
 end    
 
 # 00E0
 function clear_screen()
-    global screen
-    screen = falses(32, 64)
+    global screen = falses(32, 64)
 end    
 
-
+#DXYN
 function draw_screen(X::UInt8, Y::UInt8, N::UInt8)
-    x_coord = v[X+1]
-    y_coord = v[Y+1]
+    global screen, v, mem, I
+
+    v[16] = 0x00  
+
+    x0 = Int(v[X + 1]) % 64
+    y0 = Int(v[Y + 1]) % 32
+
+    base = Int(I) + 1   
+
+    for row in 0:(N-1)
+        sprite = mem[base + row]
+        y = (y0 + row) % 32
+
+        for bit in 0:7
+            sprite_pixel = (sprite >> (7 - bit)) & 0x1
+            if sprite_pixel == 1
+                x = (x0 + bit) % 64
+
+                if screen[y + 1, x + 1]
+                    v[16] = 0x01   
+                end
+
+                screen[y + 1, x + 1] ⊻= true
+            end
+        end
+    end
+    for y in 1:32
+    for x in 1:64
+        print(screen[y, x] ? "#" : ".")
+    end
+    println()
 end
+println()
+
+end
+
+rom = UInt8[
+    0x00, 0xE0,   
+    0x60, 0x10,   
+    0x61, 0x08,   
+    0xA0, 0x50,   
+    0xD0, 0x15,   
+    0x12, 0x00    
+]
+
+for i in eachindex(rom)
+    mem[0x200 + i] = rom[i]
+end
+
+pc = 0x200
 
 
 # main F/D/E Loop
-while true
-    load(mem[pc + 1], mem[pc + 2]) 
+while pc + 2 < 4097
+    opcode = (UInt16(mem[pc + 1]) << 8) | UInt16(mem[pc + 2])
+    global pc += 2
+    if opcode == 0
+        println("opcode is zero")
+        break 
+    else    
+        evaluate(opcode)
+    end
 end    
